@@ -5,38 +5,55 @@ import (
 	"github.com/horvatic/zracni-udar-service/pkg/store"
 )
 
-func GetProjectsMetaData() []model.ProjectMetaData {
-	return store.GetProjectsMetaData()
+type ProjectService interface {
+	GetProjectsMetaData() []model.ProjectMetaData
+	GetProjectById(id string) model.ProjectMetaData
+	GetNotesByProjectId(id string) []model.Note
+	GetBlogsByProjectId(id string) []model.Blog
+	GetVideosByProjectId(id string) []model.Video
+	GetDiagramsByProjectId(id string) []model.Diagram
+	GetGitReposByProjectId(id string) []model.GitRepo
+	GetBuildMetaDatasByProjectId(id string) []model.BuildMetaData
 }
 
-func GetProjectById(id string) model.ProjectMetaData {
-	return store.GetProjectById(id)
+type projectService struct {
+	store store.Store
 }
 
-func GetNotesByProjectId(id string) []model.Note {
-	return store.GetNotesByProjectId(id)
+func BuildProjectService(store store.Store) ProjectService {
+	return &projectService{
+		store: store,
+	}
 }
 
-func GetBlogsByProjectId(id string) []model.Blog {
-	return store.GetBlogsByProjectId(id)
+func (p *projectService) GetProjectsMetaData() []model.ProjectMetaData {
+	return p.store.GetProjectsMetaData()
 }
 
-func GetVideosByProjectId(id string) []model.Video {
-	return store.GetVideosByProjectId(id)
+func (p *projectService) GetProjectById(id string) model.ProjectMetaData {
+	return p.store.GetProjectById(id)
 }
 
-func GetDiagramsByProjectId(id string) []model.Diagram {
-	return store.GetDiagramsByProjectId(id)
+func (p *projectService) GetNotesByProjectId(id string) []model.Note {
+	return p.store.GetNotesByProjectId(id)
 }
 
-func GetGitReposByProjectId(id string) []model.GitRepo {
-	return store.GetGitReposByProjectId(id)
+func (p *projectService) GetBlogsByProjectId(id string) []model.Blog {
+	return p.store.GetBlogsByProjectId(id)
 }
 
-func GetBuildMetaDatasByProjectId(id string) []model.BuildMetaData {
-	return store.GetBuildMetaDatasByProjectId(id)
+func (p *projectService) GetVideosByProjectId(id string) []model.Video {
+	return p.store.GetVideosByProjectId(id)
 }
 
-func GetBuildsForProject(projectId string, buildId string) []model.Build {
-	return store.GetBuildsForProject(projectId, buildId)
+func (p *projectService) GetDiagramsByProjectId(id string) []model.Diagram {
+	return p.store.GetDiagramsByProjectId(id)
+}
+
+func (p *projectService) GetGitReposByProjectId(id string) []model.GitRepo {
+	return p.store.GetGitReposByProjectId(id)
+}
+
+func (p *projectService) GetBuildMetaDatasByProjectId(id string) []model.BuildMetaData {
+	return p.store.GetBuildMetaDatasByProjectId(id)
 }
