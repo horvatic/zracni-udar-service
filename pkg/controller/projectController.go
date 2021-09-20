@@ -8,56 +8,80 @@ import (
 	"github.com/horvatic/zracni-udar-service/pkg/service"
 )
 
-func GetAllProjectsMetaData(w http.ResponseWriter, req *http.Request) {
-	projectMetaData := service.GetProjectsMetaData()
+type ProjectController interface {
+	GetAllProjectsMetaData(w http.ResponseWriter, req *http.Request)
+	GetProjectById(w http.ResponseWriter, req *http.Request)
+	GetNotesByProjectId(w http.ResponseWriter, req *http.Request)
+	GetBlogsByProjectId(w http.ResponseWriter, req *http.Request)
+	GetVideosByProjectId(w http.ResponseWriter, req *http.Request)
+	GetDiagramsByProjectId(w http.ResponseWriter, req *http.Request)
+	GetGitReposByProjectId(w http.ResponseWriter, req *http.Request)
+	GetBuildMetaDatasByProjectId(w http.ResponseWriter, req *http.Request)
+	GetBuildsForProject(w http.ResponseWriter, req *http.Request)
+}
+
+type projectController struct {
+	projectService      service.ProjectService
+	projectBuildService service.ProjectBuildService
+}
+
+func BuildProjectController(projectService service.ProjectService, projectBuildService service.ProjectBuildService) ProjectController {
+	return &projectController{
+		projectService:      projectService,
+		projectBuildService: projectBuildService,
+	}
+}
+
+func (pc *projectController) GetAllProjectsMetaData(w http.ResponseWriter, req *http.Request) {
+	projectMetaData := pc.projectService.GetProjectsMetaData()
 	sendJson(w, projectMetaData)
 }
 
-func GetProjectById(w http.ResponseWriter, req *http.Request) {
+func (pc *projectController) GetProjectById(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	projects := service.GetProjectById(vars["id"])
+	projects := pc.projectService.GetProjectById(vars["id"])
 	sendJson(w, projects)
 }
 
-func GetNotesByProjectId(w http.ResponseWriter, req *http.Request) {
+func (pc *projectController) GetNotesByProjectId(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	notes := service.GetNotesByProjectId(vars["id"])
+	notes := pc.projectService.GetNotesByProjectId(vars["id"])
 	sendJson(w, notes)
 }
 
-func GetBlogsByProjectId(w http.ResponseWriter, req *http.Request) {
+func (pc *projectController) GetBlogsByProjectId(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	blogs := service.GetBlogsByProjectId(vars["id"])
+	blogs := pc.projectService.GetBlogsByProjectId(vars["id"])
 	sendJson(w, blogs)
 }
 
-func GetVideosByProjectId(w http.ResponseWriter, req *http.Request) {
+func (pc *projectController) GetVideosByProjectId(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	videos := service.GetVideosByProjectId(vars["id"])
+	videos := pc.projectService.GetVideosByProjectId(vars["id"])
 	sendJson(w, videos)
 }
 
-func GetDiagramsByProjectId(w http.ResponseWriter, req *http.Request) {
+func (pc *projectController) GetDiagramsByProjectId(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	videos := service.GetDiagramsByProjectId(vars["id"])
+	videos := pc.projectService.GetDiagramsByProjectId(vars["id"])
 	sendJson(w, videos)
 }
 
-func GetGitReposByProjectId(w http.ResponseWriter, req *http.Request) {
+func (pc *projectController) GetGitReposByProjectId(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	gitRepos := service.GetGitReposByProjectId(vars["id"])
+	gitRepos := pc.projectService.GetGitReposByProjectId(vars["id"])
 	sendJson(w, gitRepos)
 }
 
-func GetBuildMetaDatasByProjectId(w http.ResponseWriter, req *http.Request) {
+func (pc *projectController) GetBuildMetaDatasByProjectId(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	builds := service.GetBuildMetaDatasByProjectId(vars["id"])
+	builds := pc.projectService.GetBuildMetaDatasByProjectId(vars["id"])
 	sendJson(w, builds)
 }
 
-func GetBuildsForProject(w http.ResponseWriter, req *http.Request) {
+func (pc *projectController) GetBuildsForProject(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	deployments := service.GetBuildsForProject(vars["projectId"], vars["buildId"])
+	deployments := pc.projectBuildService.GetBuildsForProject(vars["projectId"], vars["buildId"])
 	sendJson(w, deployments)
 }
 
