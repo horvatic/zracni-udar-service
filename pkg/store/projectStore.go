@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -14,13 +15,16 @@ import (
 
 type Store interface {
 	GetProjectsMetaData() []model.ProjectMetaData
-	GetProjectById(id string) model.ProjectMetaData
+	GetProjectMetaDataById(id string) *model.ProjectMetaData
 	GetNotesByProjectId(id string) []model.Note
 	GetBlogsByProjectId(id string) []model.Blog
 	GetVideosByProjectId(id string) []model.Video
 	GetDiagramsByProjectId(id string) []model.Diagram
 	GetGitReposByProjectId(id string) []model.GitRepo
 	GetBuildMetaDatasByProjectId(id string) []model.BuildMetaData
+	GetProjectById(id string) *model.Project
+	CreateProject(projectMetaData *model.ProjectMetaData) error
+	UpdateProject(project *model.Project) error
 }
 
 type mongoProjectStore struct {
@@ -79,6 +83,7 @@ func (m *mongoProjectStore) getProject(id string) *model.Project {
 	projectsCollection := m.getProjectCollection(conn)
 	if err = projectsCollection.FindOne(conn.context, bson.M{"projectId": id}).Decode(&project); err != nil {
 		log.Fatal(err)
+		return nil
 	}
 	return &project
 }
@@ -112,10 +117,10 @@ func (m *mongoProjectStore) GetProjectsMetaData() []model.ProjectMetaData {
 	return projects
 }
 
-func (m *mongoProjectStore) GetProjectById(id string) model.ProjectMetaData {
+func (m *mongoProjectStore) GetProjectMetaDataById(id string) *model.ProjectMetaData {
 	project := m.getProject(id)
 
-	return model.ProjectMetaData{
+	return &model.ProjectMetaData{
 		Id:          project.ProjectId,
 		Name:        project.Name,
 		Description: project.Description,
@@ -211,4 +216,42 @@ func (m *mongoProjectStore) GetBuildMetaDatasByProjectId(id string) []model.Buil
 		})
 	}
 	return buildMetaData
+}
+
+func (m *mongoProjectStore) GetProjectById(id string) *model.Project {
+	return m.getProject(id)
+}
+
+func (m *mongoProjectStore) CreateProject(projectMetaData *model.ProjectMetaData) error {
+	project := &model.Project{
+		ProjectId:   uuid.NewString(),
+		Name:        projectMetaData.Name,
+		Description: projectMetaData.Description,
+	}
+
+	conn, conErr := m.connect()
+	if conErr != nil {
+		return conErr
+	}
+	defer m.disconnect(conn)
+	projectsCollection := m.getProjectCollection(conn)
+	_, err := projectsCollection.InsertOne(conn.context, project)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *mongoProjectStore) UpdateProject(project *model.Project) error {
+	conn, conErr := m.connect()
+	if conErr != nil {
+		return conErr
+	}
+	defer m.disconnect(conn)
+	projectsCollection := m.getProjectCollection(conn)
+	_, err := projectsCollection.ReplaceOne(conn.context, bson.M{"projectId": project.ProjectId}, project)
+	if err != nil {
+		return err
+	}
+	return nil
 }
