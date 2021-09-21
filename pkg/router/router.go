@@ -9,7 +9,9 @@ import (
 func SetRoutes(c controller.ProjectController) *mux.Router {
 	r := mux.NewRouter()
 	r.HandleFunc("/projectsmetadata", c.GetAllProjectsMetaData).Methods("GET")
-	r.HandleFunc("/project/{id}", c.GetProjectById).Methods("GET")
+	r.HandleFunc("/projectmetadata", c.CreateProject).Methods("POST")
+	r.HandleFunc("/projectmetadata/{id}", c.UpdateProject).Methods("POST")
+	r.HandleFunc("/project/{id}", c.GetProjectMetaDataById).Methods("GET")
 	r.HandleFunc("/project/{id}/notes", c.GetNotesByProjectId).Methods("GET")
 	r.HandleFunc("/project/{id}/blogs", c.GetBlogsByProjectId).Methods("GET")
 	r.HandleFunc("/project/{id}/videos", c.GetVideosByProjectId).Methods("GET")

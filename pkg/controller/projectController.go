@@ -10,7 +10,7 @@ import (
 
 type ProjectController interface {
 	GetAllProjectsMetaData(w http.ResponseWriter, req *http.Request)
-	GetProjectById(w http.ResponseWriter, req *http.Request)
+	GetProjectMetaDataById(w http.ResponseWriter, req *http.Request)
 	GetNotesByProjectId(w http.ResponseWriter, req *http.Request)
 	GetBlogsByProjectId(w http.ResponseWriter, req *http.Request)
 	GetVideosByProjectId(w http.ResponseWriter, req *http.Request)
@@ -18,6 +18,8 @@ type ProjectController interface {
 	GetGitReposByProjectId(w http.ResponseWriter, req *http.Request)
 	GetBuildMetaDatasByProjectId(w http.ResponseWriter, req *http.Request)
 	GetBuildsForProject(w http.ResponseWriter, req *http.Request)
+	CreateProject(w http.ResponseWriter, req *http.Request)
+	UpdateProject(w http.ResponseWriter, req *http.Request)
 }
 
 type projectController struct {
@@ -37,9 +39,9 @@ func (pc *projectController) GetAllProjectsMetaData(w http.ResponseWriter, req *
 	sendJson(w, projectMetaData)
 }
 
-func (pc *projectController) GetProjectById(w http.ResponseWriter, req *http.Request) {
+func (pc *projectController) GetProjectMetaDataById(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	projects := pc.projectService.GetProjectById(vars["id"])
+	projects := pc.projectService.GetProjectMetaDataById(vars["id"])
 	sendJson(w, projects)
 }
 
@@ -83,6 +85,28 @@ func (pc *projectController) GetBuildsForProject(w http.ResponseWriter, req *htt
 	vars := mux.Vars(req)
 	deployments := pc.projectBuildService.GetBuildsForProject(vars["projectId"], vars["buildId"])
 	sendJson(w, deployments)
+}
+
+func (pc *projectController) CreateProject(w http.ResponseWriter, req *http.Request) {
+	errorType, err := pc.projectService.CreateProject(&req.Body)
+	sendCreateResult(w, errorType, err)
+}
+
+func (pc *projectController) UpdateProject(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	errorType, err := pc.projectService.UpdateProjectMetaData(vars["id"], &req.Body)
+	sendCreateResult(w, errorType, err)
+}
+
+func sendCreateResult(w http.ResponseWriter, errorType service.ErrorType, err error) {
+	if errorType == service.JsonError || errorType == service.BadRequest {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	} else if errorType == service.DatabaseError {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func sendJson(w http.ResponseWriter, j interface{}) {

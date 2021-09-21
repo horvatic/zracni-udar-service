@@ -18,8 +18,9 @@ func Start() {
 	projectController := controller.BuildProjectController(projectService, projectBuildService)
 	router := router.SetRoutes(projectController)
 
+	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type"})
 	originsOk := handlers.AllowedOrigins([]string{os.Getenv("FRONT_END_HOST")})
-	methodsOk := handlers.AllowedMethods([]string{"GET", "POST", "OPTIONS"})
+	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS"})
 
-	http.ListenAndServe(":8080", handlers.CORS(originsOk, methodsOk)(router))
+	http.ListenAndServe(":8080", handlers.CORS(originsOk, headersOk, methodsOk)(router))
 }
