@@ -2,32 +2,20 @@ package service
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 
+	"github.com/google/uuid"
 	"github.com/horvatic/zracni-udar-service/pkg/model"
 	"github.com/horvatic/zracni-udar-service/pkg/store"
 )
 
-type ErrorType int64
-
-const (
-	DatabaseError ErrorType = iota
-	JsonError
-	BadRequest
-	NoError
-)
-
 type ProjectService interface {
-	GetProjectsMetaData() []model.ProjectMetaData
-	GetProjectMetaDataById(id string) *model.ProjectMetaData
-	GetNotesByProjectId(id string) []model.Note
-	GetBlogsByProjectId(id string) []model.Blog
-	GetVideosByProjectId(id string) []model.Video
-	GetDiagramsByProjectId(id string) []model.Diagram
-	GetGitReposByProjectId(id string) []model.GitRepo
-	GetBuildMetaDatasByProjectId(id string) []model.BuildMetaData
+	GetProjectsMetaData() ([]model.ProjectMetaData, ErrorType, error)
+	GetProjectMetaDataById(id string) (*model.ProjectMetaData, ErrorType, error)
 	CreateProject(body *io.ReadCloser) (ErrorType, error)
 	UpdateProjectMetaData(id string, body *io.ReadCloser) (ErrorType, error)
+	DeleteProject(projectId string) (ErrorType, error)
 }
 
 type projectService struct {
@@ -40,36 +28,29 @@ func BuildProjectService(store store.Store) ProjectService {
 	}
 }
 
-func (p *projectService) GetProjectsMetaData() []model.ProjectMetaData {
-	return p.store.GetProjectsMetaData()
+func (p *projectService) GetProjectsMetaData() ([]model.ProjectMetaData, ErrorType, error) {
+	var projectsMetaData []model.ProjectMetaData
+	projects := p.store.GetAllProjects()
+	for _, p := range projects {
+		projectsMetaData = append(projectsMetaData, model.ProjectMetaData{
+			Id:          p.ProjectId,
+			Name:        p.Name,
+			Description: p.Description,
+		})
+	}
+	return projectsMetaData, NoError, nil
 }
 
-func (p *projectService) GetProjectMetaDataById(id string) *model.ProjectMetaData {
-	return p.store.GetProjectMetaDataById(id)
-}
-
-func (p *projectService) GetNotesByProjectId(id string) []model.Note {
-	return p.store.GetNotesByProjectId(id)
-}
-
-func (p *projectService) GetBlogsByProjectId(id string) []model.Blog {
-	return p.store.GetBlogsByProjectId(id)
-}
-
-func (p *projectService) GetVideosByProjectId(id string) []model.Video {
-	return p.store.GetVideosByProjectId(id)
-}
-
-func (p *projectService) GetDiagramsByProjectId(id string) []model.Diagram {
-	return p.store.GetDiagramsByProjectId(id)
-}
-
-func (p *projectService) GetGitReposByProjectId(id string) []model.GitRepo {
-	return p.store.GetGitReposByProjectId(id)
-}
-
-func (p *projectService) GetBuildMetaDatasByProjectId(id string) []model.BuildMetaData {
-	return p.store.GetBuildMetaDatasByProjectId(id)
+func (p *projectService) GetProjectMetaDataById(id string) (*model.ProjectMetaData, ErrorType, error) {
+	project := p.store.GetProjectById(id)
+	if project == nil || project.ProjectId == "" {
+		return nil, BadRequest, errors.New("can not find project")
+	}
+	return &model.ProjectMetaData{
+		Id:          project.ProjectId,
+		Name:        project.Name,
+		Description: project.Description,
+	}, NoError, nil
 }
 
 func (p *projectService) CreateProject(body *io.ReadCloser) (ErrorType, error) {
@@ -78,7 +59,12 @@ func (p *projectService) CreateProject(body *io.ReadCloser) (ErrorType, error) {
 	if err != nil {
 		return JsonError, err
 	}
-	dbErr := p.store.CreateProject(&projectMetaData)
+	project := &model.Project{
+		ProjectId:   uuid.NewString(),
+		Name:        projectMetaData.Name,
+		Description: projectMetaData.Description,
+	}
+	dbErr := p.store.CreateProject(project)
 	if dbErr != nil {
 		return DatabaseError, dbErr
 	}
@@ -93,7 +79,7 @@ func (p *projectService) UpdateProjectMetaData(id string, body *io.ReadCloser) (
 	}
 	project := p.store.GetProjectById(id)
 	if project == nil || project.ProjectId == "" {
-		return BadRequest, err
+		return BadRequest, errors.New("can not find project")
 	}
 	project.Name = projectMetaData.Name
 	project.Description = projectMetaData.Description
@@ -102,5 +88,13 @@ func (p *projectService) UpdateProjectMetaData(id string, body *io.ReadCloser) (
 		return DatabaseError, updateErr
 	}
 
+	return NoError, nil
+}
+
+func (p *projectService) DeleteProject(projectId string) (ErrorType, error) {
+	err := p.store.DeleteProject(projectId)
+	if err != nil {
+		return DatabaseError, err
+	}
 	return NoError, nil
 }
