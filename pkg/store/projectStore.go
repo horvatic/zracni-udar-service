@@ -66,8 +66,10 @@ func (m *mongoProjectStore) disconnect(connection *connection) {
 }
 
 func (m *mongoProjectStore) GetAllProjects() []model.Project {
+
 	conn, err := m.connect()
 	if err != nil {
+		log.Fatal(err)
 		return []model.Project{}
 	}
 	defer m.disconnect(conn)
@@ -81,12 +83,13 @@ func (m *mongoProjectStore) GetAllProjects() []model.Project {
 	defer cursor.Close(conn.context)
 	for cursor.Next(conn.context) {
 		var project model.Project
+
 		if err = cursor.Decode(&project); err != nil {
 			log.Fatal(err)
 		}
+
 		projects = append(projects, project)
 	}
-
 	return projects
 }
 
