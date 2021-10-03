@@ -47,16 +47,10 @@ jobs:
     - name: Save SHA
       env: 
         TAG: ${{ steps.vars.outputs.sha_short }}
-        MONGO_CONNECTION_STRING: ${{ secrets.MONGO_CONNECTION_STRING }}
-        MONGO_DATABASE: ${{ secrets.MONGO_DATABASE }}
-        MONGO_COLLECTION: ${{ secrets.MONGO_COLLECTION }}
-        FRONT_END_HOST: ${{ secrets.FRONT_END_HOST }}
       run: |
          envsubst < deploy/base/deployment.yaml > tempbase
          cat tempbase > deploy/base/deployment.yaml
-         envsubst < deploy/dev/secret.yaml > tempsecret
-         cat tempsecret > deploy/dev/secret.yaml
-         rm tempbase tempsecret
+         rm tempbase
   
     - name: 'Upload Deploy'
       uses: actions/upload-artifact@v2
@@ -88,6 +82,17 @@ jobs:
       with:
         name: deploy
       
+    - name: Save Secrets
+      env: 
+        MONGO_CONNECTION_STRING: ${{ secrets.DEV_MONGO_CONNECTION_STRING }}
+        MONGO_DATABASE: ${{ secrets.DEV_MONGO_DATABASE }}
+        MONGO_COLLECTION: ${{ secrets.DEV_MONGO_COLLECTION }}
+        FRONT_END_HOST: ${{ secrets.DEV_FRONT_END_HOST }}
+      run: |
+          envsubst < dev/secret.yaml > tempsecret
+          cat tempsecret > dev/secret.yaml
+          rm tempsecret
+
     - name: Apply pods
       run: kubectl apply -k dev -n dev
       
@@ -96,3 +101,46 @@ jobs:
       
     - name: Wait For Pods To Start
       run: kubectl wait --for=condition=ready pod -l app=gokub-tester -n dev --timeout=10m
+
+  prod:
+    name: Deploy To Prod
+    environment:
+      name: prod
+    runs-on: ubuntu-latest
+    needs: dev
+    
+    steps:
+    - name: Kubectl tool installer
+      uses: Azure/setup-kubectl@v1
+  
+    - name: Setup kubectl
+      env: 
+        K8S_CONFIG: ${{ secrets.K8S_CONFIG }}
+      run: |
+        mkdir -p $HOME/.kube
+        echo "${K8S_CONFIG}" | base64 --decode > $HOME/.kube/config
+      
+    - name: Download Deploy
+      uses: actions/download-artifact@v2
+      with:
+        name: deploy
+      
+    - name: Save Secrets
+      env: 
+        MONGO_CONNECTION_STRING: ${{ secrets.PROD_MONGO_CONNECTION_STRING }}
+        MONGO_DATABASE: ${{ secrets.PROD_MONGO_DATABASE }}
+        MONGO_COLLECTION: ${{ secrets.PROD_MONGO_COLLECTION }}
+        FRONT_END_HOST: ${{ secrets.PROD_FRONT_END_HOST }}
+      run: |
+          envsubst < prod/secret.yaml > tempsecret
+          cat tempsecret > prod/secret.yaml
+          rm tempsecret
+
+    - name: Apply pods
+      run: kubectl apply -k prod -n prod
+      
+    - name: Wait For Deployment To Start
+      run: sleep 10s
+      
+    - name: Wait For Pods To Start
+      run: kubectl wait --for=condition=ready pod -l app=gokub-tester -n prod --timeout=10m

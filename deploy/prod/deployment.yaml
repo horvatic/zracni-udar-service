@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zus
+  labels:
+    app: zus
+spec:
+  revisionHistoryLimit : 5
+  template:
+    metadata:
+      name: zus
+      labels:
+        app: zus
+    spec:
+      dnsPolicy: ClusterFirstWithHostNet 
+      containers:
+      - name: zus
+        livenessProbe:
+          httpGet:
+            path: /prod/zus/health
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 3
