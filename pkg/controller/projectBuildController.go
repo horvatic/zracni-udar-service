@@ -28,8 +28,8 @@ func BuildProjectBuildController(projectBuildService service.ProjectBuildService
 
 func (p *projectBuildController) GetBuildsForProject(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	builds := p.projectBuildService.GetBuildsForProject(vars["projectId"], vars["buildId"])
-	sendJson(w, builds, service.NoError, nil)
+	builds, errorType, err := p.projectBuildService.GetBuildsForProject(vars["projectId"], vars["buildId"])
+	sendJson(w, builds, errorType, err)
 }
 
 func (p *projectBuildController) CreateBuildMetaData(w http.ResponseWriter, req *http.Request) {

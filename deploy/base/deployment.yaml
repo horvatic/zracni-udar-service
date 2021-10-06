@@ -44,6 +44,11 @@ spec:
               secretKeyRef: 
                 name: zus-secret
                 key: front_end_host
+          - name: GITHUB_PAT
+            valueFrom:
+              secretKeyRef: 
+                name: zus-secret
+                key: github_pat
         ports:
           - containerPort: 8080
             name: "zus-http"
