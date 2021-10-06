@@ -88,6 +88,7 @@ jobs:
         MONGO_DATABASE: ${{ secrets.DEV_MONGO_DATABASE }}
         MONGO_COLLECTION: ${{ secrets.DEV_MONGO_COLLECTION }}
         FRONT_END_HOST: ${{ secrets.DEV_FRONT_END_HOST }}
+        GITHUB_PAT: ${{ secrets.DEV_GITHUB_PAT }}
       run: |
           envsubst < dev/secret.yaml > tempsecret
           cat tempsecret > dev/secret.yaml
@@ -131,6 +132,7 @@ jobs:
         MONGO_DATABASE: ${{ secrets.PROD_MONGO_DATABASE }}
         MONGO_COLLECTION: ${{ secrets.PROD_MONGO_COLLECTION }}
         FRONT_END_HOST: ${{ secrets.PROD_FRONT_END_HOST }}
+        GITHUB_PAT: ${{ secrets.PROD_GITHUB_PAT }}
       run: |
           envsubst < prod/secret.yaml > tempsecret
           cat tempsecret > prod/secret.yaml

@@ -6,4 +6,6 @@ type BuildMetaData struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Uri         string `json:"uri"`
+	RepoOwner   string `json:"repo_owner"`
+	RepoName    string `json:"repo_name"`
 }

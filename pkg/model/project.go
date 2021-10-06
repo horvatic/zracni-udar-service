@@ -56,4 +56,6 @@ type ProjectBuildsMetaData struct {
 	Name        string `bson:"name"`
 	Description string `bson:"description"`
 	Uri         string `bson:"uri"`
+	RepoOwner   string `bson:"repo_owner"`
+	RepoName    string `bson:"repo_name"`
 }

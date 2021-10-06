@@ -1,10 +1,13 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
+	"strconv"
 
+	"github.com/google/go-github/v39/github"
 	"github.com/google/uuid"
 	"github.com/horvatic/zracni-udar-service/pkg/model"
 	"github.com/horvatic/zracni-udar-service/pkg/store"
@@ -16,16 +19,18 @@ type ProjectBuildService interface {
 	UpdateBuildMetaData(buildId string, projectId string, body *io.ReadCloser) (ErrorType, error)
 	DeleteBuildMetaData(buildId string, projectId string) (ErrorType, error)
 	GetBuildMetaData(projectId string, buildId string) (*model.BuildMetaData, ErrorType, error)
-	GetBuildsForProject(projectid string, buildId string) []model.Build
+	GetBuildsForProject(projectid string, buildId string) ([]model.Build, ErrorType, error)
 }
 
 type projectBuildService struct {
-	store store.Store
+	store  store.Store
+	client *github.Client
 }
 
-func BuildProjectBuildService(store store.Store) ProjectBuildService {
+func BuildProjectBuildService(store store.Store, client *github.Client) ProjectBuildService {
 	return &projectBuildService{
-		store: store,
+		store:  store,
+		client: client,
 	}
 }
 
@@ -42,6 +47,8 @@ func (b *projectBuildService) GetBuildMetaDatasByProjectId(id string) ([]model.B
 			Name:        p.Name,
 			Description: p.Description,
 			Uri:         p.Uri,
+			RepoName:    p.RepoName,
+			RepoOwner:   p.RepoOwner,
 		})
 	}
 	return buildMetaData, NoError, nil
@@ -62,6 +69,8 @@ func (b *projectBuildService) CreateBuildMetaData(projectId string, body *io.Rea
 		Name:        build.Name,
 		Description: build.Description,
 		Uri:         build.Uri,
+		RepoName:    build.RepoName,
+		RepoOwner:   build.RepoOwner,
 	})
 	updateErr := b.store.UpdateProject(project)
 	if updateErr != nil {
@@ -94,6 +103,8 @@ func (b *projectBuildService) UpdateBuildMetaData(buildId string, projectId stri
 	project.ProjectBuildsMetaData[index].Name = build.Name
 	project.ProjectBuildsMetaData[index].Description = build.Description
 	project.ProjectBuildsMetaData[index].Uri = build.Uri
+	project.ProjectBuildsMetaData[index].RepoName = build.RepoName
+	project.ProjectBuildsMetaData[index].RepoOwner = build.RepoOwner
 	updateErr := b.store.UpdateProject(project)
 	if updateErr != nil {
 		return DatabaseError, updateErr
@@ -150,107 +161,61 @@ func (b *projectBuildService) GetBuildMetaData(projectId string, buildId string)
 		Name:        project.ProjectBuildsMetaData[index].Name,
 		Description: project.ProjectBuildsMetaData[index].Description,
 		Uri:         project.ProjectBuildsMetaData[index].Uri,
+		RepoName:    project.ProjectBuildsMetaData[index].RepoName,
+		RepoOwner:   project.ProjectBuildsMetaData[index].RepoOwner,
 	}, NoError, nil
 }
 
-func (b *projectBuildService) GetBuildsForProject(projectid string, buildId string) []model.Build {
-	if projectid == "785588cf-9ec0-4482-9a5f-df343cec6ac4" && buildId == "1b6086ae-a5b8-499f-86ce-e59fc3f84194" {
-		return []model.Build{
-			{
-				Id:        "cf22290b-c20e-4994-abce-112795e32886",
-				ProjectId: "785588cf-9ec0-4482-9a5f-df343cec6ac4",
-				Version:   "0",
-				Environments: []model.Environment{
-					{
-						Name:   "dev",
-						Status: "passing",
-						Order:  0,
-					},
-					{
-						Name:   "test",
-						Status: "passing",
-						Order:  0,
-					},
-					{
-						Name:   "prod",
-						Status: "passing",
-						Order:  0,
-					},
-				},
-			},
-			{
-				Id:        "16d01ace-27ac-4aa0-b3f3-b3a62a5a7a81",
-				ProjectId: "785588cf-9ec0-4482-9a5f-df343cec6ac4",
-				Version:   "1",
-				Environments: []model.Environment{
-					{
-						Name:   "dev",
-						Status: "passing",
-						Order:  0,
-					},
-					{
-						Name:   "test",
-						Status: "pending",
-						Order:  0,
-					},
-					{
-						Name:   "prod",
-						Status: "pending",
-						Order:  0,
-					},
-				},
-			},
-		}
-	} else if projectid == "785588cf-9ec0-4482-9a5f-df343cec6ac4" && buildId == "217c4d79-e5a3-4bf2-8beb-4fbd8f556c7e" {
-		return []model.Build{
-			{
-				Id:        "da663d33-9df1-4546-aafa-96f79aa75137",
-				ProjectId: "785588cf-9ec0-4482-9a5f-df343cec6ac4",
-				Version:   "0",
-				Environments: []model.Environment{
-					{
-						Name:   "dev",
-						Status: "passing",
-						Order:  0,
-					},
-					{
-						Name:   "test",
-						Status: "pending",
-						Order:  0,
-					},
-					{
-						Name:   "prod",
-						Status: "pending",
-						Order:  0,
-					},
-				},
-			},
-		}
-	} else if projectid == "8c98d8dd-28a0-4d2e-896b-31b1a59fed93" && buildId == "3649e08e-2b55-4959-a031-fb26b43f281a" {
-		return []model.Build{
-			{
-				Id:        "3952c302-8dd0-4b7b-9741-d325cd05dfde",
-				ProjectId: "8c98d8dd-28a0-4d2e-896b-31b1a59fed93",
-				Version:   "0",
-				Environments: []model.Environment{
-					{
-						Name:   "dev",
-						Status: "passing",
-						Order:  0,
-					},
-					{
-						Name:   "test",
-						Status: "failed",
-						Order:  0,
-					},
-					{
-						Name:   "prod",
-						Status: "pending",
-						Order:  0,
-					},
-				},
-			},
+func (b *projectBuildService) GetBuildsForProject(projectId string, buildId string) ([]model.Build, ErrorType, error) {
+	project := b.store.GetProjectById(projectId)
+	if project == nil || project.ProjectId == "" {
+		return []model.Build{}, BadRequest, errors.New("can not find project")
+	}
+	index := -1
+	for i, p := range project.ProjectBuildsMetaData {
+		if p.Id == buildId {
+			index = i
+			break
 		}
 	}
-	return []model.Build{}
+
+	if index == -1 {
+		return []model.Build{}, BadRequest, errors.New("can not find build")
+	}
+
+	buildMetaData := project.ProjectBuildsMetaData[index]
+	var builds []model.Build
+	if workflows, _, err := b.client.Actions.ListWorkflows(context.TODO(), buildMetaData.RepoOwner, buildMetaData.RepoName, &github.ListOptions{}); err != nil {
+		return []model.Build{}, BadRequest, err
+	} else {
+		for _, w := range workflows.Workflows {
+			if runs, _, err := b.client.Actions.ListWorkflowRunsByID(context.TODO(), buildMetaData.RepoOwner, buildMetaData.RepoName, w.GetID(), &github.ListWorkflowRunsOptions{}); err != nil {
+				return []model.Build{}, BadRequest, err
+			} else {
+				numRuns := len(runs.WorkflowRuns)
+				for i, r := range runs.WorkflowRuns {
+					build := model.Build{
+						Id:        buildMetaData.Id,
+						ProjectId: projectId,
+						BuildId:   buildId,
+						Version:   strconv.Itoa(numRuns - i),
+					}
+					if jobs, _, err := b.client.Actions.ListWorkflowJobs(context.TODO(), buildMetaData.RepoOwner, buildMetaData.RepoName, r.GetID(), &github.ListWorkflowJobsOptions{}); err != nil {
+						return []model.Build{}, BadRequest, err
+					} else {
+						for ij, j := range jobs.Jobs {
+							build.Stages = append(build.Stages, model.Stage{
+								Name:   j.GetName(),
+								Status: j.GetStatus(),
+								Order:  ij,
+							})
+						}
+					}
+					builds = append(builds, build)
+				}
+			}
+		}
+	}
+
+	return builds, NoError, nil
 }
