@@ -11,6 +11,7 @@ type Project struct {
 	Description           string                  `bson:"description"`
 	ProjectNotes          []ProjectNotes          `bson:"notes"`
 	ProjectBlogs          []ProjectBlogs          `bson:"blogs"`
+	ProjectServicesInfo   []ProjectServicesInfo   `bson:"services_info"`
 	ProjectVideos         []ProjectVideos         `bson:"videos"`
 	ProjectDiagrams       []ProjectDiagrams       `bson:"diagrams"`
 	ProjectGitRepos       []ProjectGitRepos       `bson:"git_repos"`
@@ -28,6 +29,14 @@ type ProjectBlogs struct {
 	Name        string `bson:"name"`
 	Description string `bson:"description"`
 	Uri         string `bson:"uri"`
+}
+
+type ProjectServicesInfo struct {
+	Id          string `bson:"id"`
+	Name        string `bson:"name"`
+	Description string `bson:"description"`
+	Uri         string `bson:"uri"`
+	HealthUri   string `bson:"health_uri"`
 }
 
 type ProjectVideos struct {

@@ -36,6 +36,7 @@ func Start() {
 	routes.SetGitRepoRoutes(controller.BuildGitRepoController(service.BuildGitRepoService(store)), router, namespace, serviceName)
 	routes.SetProjectBuildRoutes(controller.BuildProjectBuildController(service.BuildProjectBuildService(store, client)), router, namespace, serviceName)
 	routes.SetVideoRoutes(controller.BuildVideoController(service.BuildVideoService(store)), router, namespace, serviceName)
+	routes.SetServiceRoutes(controller.BuildServiceInfoController(service.BuildServiceInfoService(store)), router, namespace, serviceName)
 	routes.SetHeathRoutes(router, namespace, serviceName)
 
 	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type"})
