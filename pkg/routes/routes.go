@@ -35,6 +35,15 @@ func SetBlogRoutes(c controller.BlogController, router *mux.Router, namespace st
 	return router
 }
 
+func SetServiceRoutes(c controller.ServiceInfoController, router *mux.Router, namespace string, serviceName string) *mux.Router {
+	router.HandleFunc(buildRoute(namespace, serviceName, "/project/{id}/services"), c.GetServicesInfoByProjectId).Methods("GET")
+	router.HandleFunc(buildRoute(namespace, serviceName, "/project/{projectId}/services/{serviceId}"), c.GetServiceInfo).Methods("GET")
+	router.HandleFunc(buildRoute(namespace, serviceName, "/project/{projectId}/services"), c.CreateServiceInfo).Methods("POST")
+	router.HandleFunc(buildRoute(namespace, serviceName, "/project/{projectId}/services/{serviceId}"), c.UpdateServiceInfo).Methods("PATCH")
+	router.HandleFunc(buildRoute(namespace, serviceName, "/project/{projectId}/services/{serviceId}"), c.DeleteServiceInfo).Methods("DELETE")
+	return router
+}
+
 func SetVideoRoutes(c controller.VideoController, router *mux.Router, namespace string, serviceName string) *mux.Router {
 	router.HandleFunc(buildRoute(namespace, serviceName, "/project/{id}/videos"), c.GetVideosByProjectId).Methods("GET")
 	router.HandleFunc(buildRoute(namespace, serviceName, "/project/{projectId}/videos/{videoId}"), c.GetVideo).Methods("GET")
