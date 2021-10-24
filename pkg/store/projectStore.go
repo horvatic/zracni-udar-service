@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -69,7 +68,6 @@ func (m *mongoProjectStore) GetAllProjects() []model.Project {
 
 	conn, err := m.connect()
 	if err != nil {
-		log.Fatal(err)
 		return []model.Project{}
 	}
 	defer m.disconnect(conn)
@@ -77,17 +75,15 @@ func (m *mongoProjectStore) GetAllProjects() []model.Project {
 	projectsCollection := m.getProjectCollection(conn)
 	cursor, err := projectsCollection.Find(conn.context, bson.M{})
 	if err != nil {
-		log.Fatal(err)
+		return nil
 	}
 	var projects []model.Project
 	defer cursor.Close(conn.context)
 	for cursor.Next(conn.context) {
 		var project model.Project
-
 		if err = cursor.Decode(&project); err != nil {
-			log.Fatal(err)
+			return nil
 		}
-
 		projects = append(projects, project)
 	}
 	return projects
@@ -103,7 +99,6 @@ func (m *mongoProjectStore) GetProjectById(id string) *model.Project {
 	var project model.Project
 	projectsCollection := m.getProjectCollection(conn)
 	if err = projectsCollection.FindOne(conn.context, bson.M{"projectId": id}).Decode(&project); err != nil {
-		log.Fatal(err)
 		return nil
 	}
 	return &project
