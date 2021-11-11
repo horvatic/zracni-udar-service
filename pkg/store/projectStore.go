@@ -20,66 +20,45 @@ type Store interface {
 }
 
 type mongoProjectStore struct {
-	connectionString string
-	database         string
-	collection       string
+	client     *mongo.Client
+	context    context.Context
+	database   string
+	collection string
 }
 
-type connection struct {
-	client  *mongo.Client
-	context context.Context
-}
+func BuildMongoProjectStore(connectionString string, database string, collection string) (Store, *mongo.Client, context.Context, error) {
 
-func BuildMongoProjectStore(connectionString string, database string, collection string) Store {
-	return &mongoProjectStore{
-		connectionString: connectionString,
-		database:         database,
-		collection:       collection,
-	}
-}
-
-func (m *mongoProjectStore) connect() (*connection, error) {
-	client, err := mongo.NewClient(options.Client().ApplyURI(m.connectionString))
+	client, err := mongo.NewClient(options.Client().ApplyURI(connectionString))
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	err = client.Connect(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
-	return &connection{
-		client:  client,
-		context: ctx,
-	}, nil
+	return &mongoProjectStore{
+		client:     client,
+		database:   database,
+		collection: collection,
+	}, client, ctx, nil
 }
 
-func (m *mongoProjectStore) getProjectCollection(connection *connection) *mongo.Collection {
-	db := connection.client.Database(m.database)
+func (m *mongoProjectStore) getProjectCollection() *mongo.Collection {
+	db := m.client.Database(m.database)
 	projects := db.Collection(m.collection)
 	return projects
 }
 
-func (m *mongoProjectStore) disconnect(connection *connection) {
-	connection.client.Disconnect(connection.context)
-}
-
 func (m *mongoProjectStore) GetAllProjects() []model.Project {
-
-	conn, err := m.connect()
-	if err != nil {
-		return []model.Project{}
-	}
-	defer m.disconnect(conn)
-
-	projectsCollection := m.getProjectCollection(conn)
-	cursor, err := projectsCollection.Find(conn.context, bson.M{})
+	projectsCollection := m.getProjectCollection()
+	cursor, err := projectsCollection.Find(m.context, bson.M{})
 	if err != nil {
 		return nil
 	}
 	var projects []model.Project
-	defer cursor.Close(conn.context)
-	for cursor.Next(conn.context) {
+	defer cursor.Close(m.context)
+	for cursor.Next(m.context) {
 		var project model.Project
 		if err = cursor.Decode(&project); err != nil {
 			return nil
@@ -90,28 +69,17 @@ func (m *mongoProjectStore) GetAllProjects() []model.Project {
 }
 
 func (m *mongoProjectStore) GetProjectById(id string) *model.Project {
-	conn, err := m.connect()
-	if err != nil {
-		return &model.Project{}
-	}
-	defer m.disconnect(conn)
-
 	var project model.Project
-	projectsCollection := m.getProjectCollection(conn)
-	if err = projectsCollection.FindOne(conn.context, bson.M{"projectId": id}).Decode(&project); err != nil {
+	projectsCollection := m.getProjectCollection()
+	if err := projectsCollection.FindOne(m.context, bson.M{"projectId": id}).Decode(&project); err != nil {
 		return nil
 	}
 	return &project
 }
 
 func (m *mongoProjectStore) CreateProject(project *model.Project) error {
-	conn, conErr := m.connect()
-	if conErr != nil {
-		return conErr
-	}
-	defer m.disconnect(conn)
-	projectsCollection := m.getProjectCollection(conn)
-	_, err := projectsCollection.InsertOne(conn.context, project)
+	projectsCollection := m.getProjectCollection()
+	_, err := projectsCollection.InsertOne(m.context, project)
 	if err != nil {
 		return err
 	}
@@ -119,13 +87,8 @@ func (m *mongoProjectStore) CreateProject(project *model.Project) error {
 }
 
 func (m *mongoProjectStore) UpdateProject(project *model.Project) error {
-	conn, conErr := m.connect()
-	if conErr != nil {
-		return conErr
-	}
-	defer m.disconnect(conn)
-	projectsCollection := m.getProjectCollection(conn)
-	_, err := projectsCollection.ReplaceOne(conn.context, bson.M{"projectId": project.ProjectId}, project)
+	projectsCollection := m.getProjectCollection()
+	_, err := projectsCollection.ReplaceOne(m.context, bson.M{"projectId": project.ProjectId}, project)
 	if err != nil {
 		return err
 	}
@@ -133,13 +96,8 @@ func (m *mongoProjectStore) UpdateProject(project *model.Project) error {
 }
 
 func (m *mongoProjectStore) DeleteProject(projectId string) error {
-	conn, conErr := m.connect()
-	if conErr != nil {
-		return conErr
-	}
-	defer m.disconnect(conn)
-	projectsCollection := m.getProjectCollection(conn)
-	_, err := projectsCollection.DeleteOne(conn.context, bson.M{"projectId": projectId})
+	projectsCollection := m.getProjectCollection()
+	_, err := projectsCollection.DeleteOne(m.context, bson.M{"projectId": projectId})
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/google/go-github/v39/github"
 	"github.com/gorilla/handlers"
@@ -20,7 +23,11 @@ func Start() {
 	namespace := os.Getenv("NAMESPACE")
 	serviceName := os.Getenv("SERVICE")
 	router := mux.NewRouter()
-	store := store.BuildMongoProjectStore(os.Getenv("MONGO_CONNECTION_STRING"), os.Getenv("MONGO_DATABASE"), os.Getenv("MONGO_COLLECTION"))
+	store, dbClient, dbContext, err := store.BuildMongoProjectStore(os.Getenv("MONGO_CONNECTION_STRING"), os.Getenv("MONGO_DATABASE"), os.Getenv("MONGO_COLLECTION"))
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
 
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
@@ -44,5 +51,22 @@ func Start() {
 	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "PATCH", "OPTIONS", "DELETE"})
 
 	fmt.Println("Starting Server On Port 8080")
-	http.ListenAndServe(":8080", handlers.CORS(originsOk, headersOk, methodsOk)(router))
+
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	server := &http.Server{Addr: ":8080", Handler: handlers.CORS(originsOk, headersOk, methodsOk)(router)}
+	go func() {
+		server.ListenAndServe()
+	}()
+
+	<-done
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		fmt.Println(err.Error())
+	}
+	fmt.Println("Server Stopped")
+	dbClient.Disconnect(dbContext)
+	fmt.Println("Db Disconnected")
 }
