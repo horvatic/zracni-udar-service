@@ -3,7 +3,7 @@ name: build-deploy
 
 on:
   push:
-    branches: [ main ]
+    branches: [ feature/portless-deployment ]
 
 jobs:
   build:
@@ -24,7 +24,7 @@ jobs:
 
     - name: Set SHA
       id: vars
-      run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+      run: echo "::set-output name=sha_short::$(git rev-parse --short $GITHUB_SHA)"
       
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v1
@@ -44,21 +44,25 @@ jobs:
         push: true 
         tags: horvatic/zracni-udar-service:${{ steps.vars.outputs.sha_short }}
     
-    - name: Save SHA
-      env: 
-        TAG: ${{ steps.vars.outputs.sha_short }}
-      run: |
-         envsubst < deploy/base/deployment.yaml > tempbase
-         cat tempbase > deploy/base/deployment.yaml
-         rm tempbase
-  
+    - name: 'Save Sha'
+      run: echo "$GITHUB_SHA" >> deploy/GITHUB_SHA
+
+    - name: 'Save Branch'
+      run: echo "$GITHUB_REF" >> deploy/BRANCH_NAME
+
+    - name: 'Save Short Sha'
+      env:
+        DEPLOYMENT_GITSHORTSHA: ${{ steps.vars.outputs.sha_short }}
+      run: echo "$DEPLOYMENT_GITSHORTSHA" >> deploy/GITHUB_SHORT_SHA
+
+
     - name: 'Upload Deploy'
       uses: actions/upload-artifact@v2
       with:
         name: deploy
         path: deploy
         retention-days: 5
-        
+
   dev:
     name: Deploy To Dev
     environment:
@@ -67,82 +71,34 @@ jobs:
     needs: build
     
     steps:
-    - name: Kubectl tool installer
-      uses: Azure/setup-kubectl@v1
-  
-    - name: Setup kubectl
-      env: 
-        K8S_CONFIG: ${{ secrets.K8S_CONFIG }}
-      run: |
-        mkdir -p $HOME/.kube
-        echo "${K8S_CONFIG}" | base64 --decode > $HOME/.kube/config
-      
+    - name: Set up Go 1.x
+      uses: actions/setup-go@v2
+      with:
+        go-version: ^1.16
+
+
     - name: Download Deploy
       uses: actions/download-artifact@v2
       with:
         name: deploy
       
-    - name: Save Secrets
-      env: 
-        MONGO_CONNECTION_STRING: ${{ secrets.DEV_MONGO_CONNECTION_STRING }}
-        MONGO_DATABASE: ${{ secrets.DEV_MONGO_DATABASE }}
-        MONGO_COLLECTION: ${{ secrets.DEV_MONGO_COLLECTION }}
-        FRONT_END_HOST: ${{ secrets.DEV_FRONT_END_HOST }}
-        GITHUB_PAT: ${{ secrets.DEV_GITHUB_PAT }}
+    - name: 'Set Sha and Branch Name'
+      id: vars
       run: |
-          envsubst < dev/secret.yaml > tempsecret
-          cat tempsecret > dev/secret.yaml
-          rm tempsecret
+        echo "::set-output name=deploy_git_sha::$(cat GITHUB_SHA)"
+        echo "::set-output name=deploy_git_short_sha::$(cat GITHUB_SHORT_SHA)"
+        echo "::set-output name=deploy_branch_name::$(cat BRANCH_NAME)"
 
-    - name: Apply pods
-      run: kubectl apply -k dev -n dev
-      
-    - name: Wait For Deployment To Start
-      run: sleep 10s
-      
-    - name: Wait For Pods To Start
-      run: kubectl wait --for=condition=ready pod -l app=zus -n dev --timeout=10m
-
-  prod:
-    name: Deploy To Prod
-    environment:
-      name: prod
-    runs-on: ubuntu-latest
-    needs: dev
-    
-    steps:
-    - name: Kubectl tool installer
-      uses: Azure/setup-kubectl@v1
-  
-    - name: Setup kubectl
+    - name: Deploy
       env: 
-        K8S_CONFIG: ${{ secrets.K8S_CONFIG }}
+        DEPLOYMENT_MONGO_CONNECTION_STRING: ${{ secrets.DEPLOYMENT_MONGO_CONNECTION_STRING }}
+        DEPLOYMENT_MONGO_DATABASE: ${{ secrets.DEPLOYMENT_MONGO_DATABASE }}
+        DEPLOYMENT_MONGO_COLLECTION: ${{ secrets.DEPLOYMENT_MONGO_COLLECTION }}
+        DEPLOYMENT_ENV: "dev"
+        DEPLOYMENT_GITSHA: ${{ steps.vars.outputs.deploy_git_sha }}
+        DEPLOYMENT_GIT_SHORT_SHA: ${{ steps.vars.outputs.deploy_git_short_sha }}
+        DEPLOYMENT_BRANCH_NAME: ${{ steps.vars.outputs.deploy_branch_name }}
       run: |
-        mkdir -p $HOME/.kube
-        echo "${K8S_CONFIG}" | base64 --decode > $HOME/.kube/config
-      
-    - name: Download Deploy
-      uses: actions/download-artifact@v2
-      with:
-        name: deploy
-      
-    - name: Save Secrets
-      env: 
-        MONGO_CONNECTION_STRING: ${{ secrets.PROD_MONGO_CONNECTION_STRING }}
-        MONGO_DATABASE: ${{ secrets.PROD_MONGO_DATABASE }}
-        MONGO_COLLECTION: ${{ secrets.PROD_MONGO_COLLECTION }}
-        FRONT_END_HOST: ${{ secrets.PROD_FRONT_END_HOST }}
-        GITHUB_PAT: ${{ secrets.PROD_GITHUB_PAT }}
-      run: |
-          envsubst < prod/secret.yaml > tempsecret
-          cat tempsecret > prod/secret.yaml
-          rm tempsecret
-
-    - name: Apply pods
-      run: kubectl apply -k prod -n prod
-      
-    - name: Wait For Deployment To Start
-      run: sleep 10s
-      
-    - name: Wait For Pods To Start
-      run: kubectl wait --for=condition=ready pod -l app=zus -n prod --timeout=10m
+        cd scripts/update 
+        go mod tidy
+        go run main.go
