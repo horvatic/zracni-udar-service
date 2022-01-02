@@ -33,21 +33,21 @@ cat tempbase > deploy/base/deployment.yaml
 rm tempbase
 
 export TAG=""
-export MONGO_CONNECTION_STRING="$(cat /deployments/secrets/zracni-udar-service/dev/MONGO_CONNECTION_STRING)"
-export MONGO_DATABASE="$(cat /deployments/secrets/zracni-udar-service/dev/MONGO_DATABASE)"
-export MONGO_COLLECTION="$(cat /deployments/secrets/zracni-udar-service/dev/MONGO_COLLECTION)"
-export FRONT_END_HOST="$(cat /deployments/secrets/zracni-udar-service/dev/FRONT_END_HOST)"
-export GITHUB_PAT="$(cat /deployments/secrets/zracni-udar-service/dev/GITHUB_PAT)"
+export MONGO_CONNECTION_STRING="$(cat /deployments/secrets/zracni-udar-service/$ENV/MONGO_CONNECTION_STRING)"
+export MONGO_DATABASE="$(cat /deployments/secrets/zracni-udar-service/$ENV/MONGO_DATABASE)"
+export MONGO_COLLECTION="$(cat /deployments/secrets/zracni-udar-service/$ENV/MONGO_COLLECTION)"
+export FRONT_END_HOST="$(cat /deployments/secrets/zracni-udar-service/$ENV/FRONT_END_HOST)"
+export GITHUB_PAT="$(cat /deployments/secrets/zracni-udar-service/$ENV/GITHUB_PAT)"
 
-envsubst '${MONGO_CONNECTION_STRING} ${MONGO_DATABASE} ${MONGO_COLLECTION} ${FRONT_END_HOST} ${GITHUB_PAT}' < deploy/dev/secret.yaml > tempsecret
-cat tempsecret > deploy/dev/secret.yaml
+envsubst '${MONGO_CONNECTION_STRING} ${MONGO_DATABASE} ${MONGO_COLLECTION} ${FRONT_END_HOST} ${GITHUB_PAT}' < "deploy/$ENV/secret.yaml" > tempsecret
+cat tempsecret > "deploy/$ENV/secret.yaml"
 rm tempsecret
 
-microk8s kubectl apply -k deploy/dev -n dev
+microk8s kubectl apply -k "deploy/$ENV" -n "$ENV"
 
 sleep 10s
 
-microk8s kubectl wait --for=condition=ready pod -l app=zus -n dev --timeout=10m
+microk8s kubectl wait --for=condition=ready pod -l app=zus -n "$ENV" --timeout=10m
 
 cd /deployments
 

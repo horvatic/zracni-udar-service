@@ -102,3 +102,43 @@ jobs:
         cd scripts/update 
         go mod tidy
         go run main.go
+
+  prod:
+    name: Deploy To Prod
+    environment:
+      name: prod
+    runs-on: ubuntu-latest
+    needs: dev
+
+    steps:
+    - name: Set up Go 1.x
+      uses: actions/setup-go@v2
+      with:
+        go-version: ^1.16
+
+
+    - name: Download Deploy
+      uses: actions/download-artifact@v2
+      with:
+        name: deploy
+
+    - name: 'Set Sha and Branch Name'
+      id: vars
+      run: |
+        echo "::set-output name=deploy_git_sha::$(cat GITHUB_SHA)"
+        echo "::set-output name=deploy_git_short_sha::$(cat GITHUB_SHORT_SHA)"
+        echo "::set-output name=deploy_branch_name::$(cat BRANCH_NAME)"
+
+    - name: Deploy
+      env:
+        DEPLOYMENT_MONGO_CONNECTION_STRING: ${{ secrets.DEPLOYMENT_MONGO_CONNECTION_STRING }}
+        DEPLOYMENT_MONGO_DATABASE: ${{ secrets.DEPLOYMENT_MONGO_DATABASE }}
+        DEPLOYMENT_MONGO_COLLECTION: ${{ secrets.DEPLOYMENT_MONGO_COLLECTION }}
+        DEPLOYMENT_ENV: "prod"
+        DEPLOYMENT_GITSHA: ${{ steps.vars.outputs.deploy_git_sha }}
+        DEPLOYMENT_GIT_SHORT_SHA: ${{ steps.vars.outputs.deploy_git_short_sha }}
+        DEPLOYMENT_BRANCH_NAME: ${{ steps.vars.outputs.deploy_branch_name }}
+      run: |
+        cd scripts/update
+        go mod tidy
+        go run main.go
