@@ -1,8 +1,0 @@
-bases:
-- ../base
-resources:
-- secret.yaml
-patchesStrategicMerge:
-- config.yaml 
-- ingress.yaml
-- deployment.yaml
