@@ -10,7 +10,8 @@ ENV MONGO_CONNECTION_STRING=default \
         MONGO_DATABASE=default \
         MONGO_COLLECTION=default \
         FRONT_END_HOST=default \
-        GITHUB_PAT=default
+        GITHUB_PAT=default \
+        API_KEY=default 
 
 RUN apk --no-cache add ca-certificates
 WORKDIR /dist

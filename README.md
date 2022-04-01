@@ -16,8 +16,6 @@ MONGO_COLLECTION = Target Mongo collection
 
 FRONT_END_HOST= Front end sending request
 
-NAMESPACE = K8's namespace
-
-SERVICE = Service name
-
 GITHUB_PAT = OAuth2 PAT
+
+API_KEY = API Key for using the app

@@ -19,6 +19,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+var API_KEY string = os.Getenv("API_KEY")
+
 func Start() {
 	router := mux.NewRouter()
 	store, dbClient, dbContext, err := store.BuildMongoProjectStore(os.Getenv("MONGO_CONNECTION_STRING"), os.Getenv("MONGO_DATABASE"), os.Getenv("MONGO_COLLECTION"))
@@ -34,6 +36,7 @@ func Start() {
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
 
+	router.Use(apiKeyMiddleware)
 	routes.SetProjectRoutes(controller.BuildProjectController(service.BuildProjectService(store)), router)
 	routes.SetNoteRoutes(controller.BuildNoteController(service.BuildNoteService(store)), router)
 	routes.SetBlogRoutes(controller.BuildBlogController(service.BuildBlogService(store)), router)
@@ -44,7 +47,7 @@ func Start() {
 	routes.SetServiceRoutes(controller.BuildServiceInfoController(service.BuildServiceInfoService(store)), router)
 	routes.SetHeathRoutes(router)
 
-	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type"})
+	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	originsOk := handlers.AllowedOrigins([]string{os.Getenv("FRONT_END_HOST")})
 	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "PATCH", "OPTIONS", "DELETE"})
 
@@ -67,4 +70,23 @@ func Start() {
 	fmt.Println("Server Stopped")
 	dbClient.Disconnect(dbContext)
 	fmt.Println("Db Disconnected")
+}
+
+func apiKeyMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path == "/health" {
+			next.ServeHTTP(w, req)
+			return
+		}
+		if _, password, ok := req.BasicAuth(); !ok {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		} else {
+			if password != API_KEY {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			next.ServeHTTP(w, req)
+		}
+	})
 }
